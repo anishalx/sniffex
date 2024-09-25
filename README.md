@@ -53,8 +53,88 @@ The required packages include:
 
 ### Step 3: Set Up Permissions (Linux/macOS)
 
-If you're using Linux or macOS, running a packet sniffer may require elevated permissions. You can run the script with 'sudo':
+If you're using Linux or macOS, running a packet sniffer may require elevated permissions. You can run the script with `sudo`:
 
 ```bash
 sudo python3 SniffEx.py
 ```
+## Usage
+
+### Running the Sniffer
+
+To start sniffing traffic, simply specify the network interface you want to monitor:
+
+```bash
+python3 SniffEx.py -i <interface>
+```
+For example:
+
+```bash
+python3 SniffEx.py -i eth0
+```
+### Capturing HTTP Requests
+
+SniffEx will automatically capture HTTP requests made by devices on the network. It will display the URLs visited, along with any potential login information found within the packets.
+
+## Example Output
+
+
+
+## Customization
+
+SniffEx allows customization to monitor specific types of traffic. You can modify the code to focus on additional layers, protocols, or extract more detailed information from the captured packets.
+
+## Troubleshooting
+
+If you encounter any issues, here are some common fixes:
+
+1. **Permission Denied**: 
+   - Ensure you are running the script with sufficient privileges. On Linux/macOS, use `sudo` to run the script:
+     ```bash
+     sudo python3 SniffEx.py
+     ```
+
+2. **No Traffic Captured**: 
+   - Make sure you are monitoring the correct network interface. You can list the available interfaces using the following command (Linux/macOS):
+     ```bash
+     ifconfig
+     ```
+     For Windows, you can use:
+     ```bash
+     ipconfig
+     ```
+     Then specify the correct interface in the command:
+     ```bash
+     python3 SniffEx.py -i <interface>
+     ```
+
+3. **Dependencies Missing**: 
+   - Verify that all required libraries are installed by running:
+     ```bash
+     pip install -r requirements.txt
+     ```
+   - If issues persist, try installing the dependencies manually:
+     ```bash
+     pip install scapy scapy-http
+     ```
+
+4. **No HTTP Requests Captured**: 
+   - Ensure that the traffic you are capturing is HTTP-based. If the traffic is HTTPS (encrypted), SniffEx will not be able to capture the details without additional tools like SSL stripping.
+
+## Contributing
+We welcome contributions from the community! If you have ideas for improvements or new features, please follow these steps:
+
+1. **Fork the repository**.
+2. **Create a new branch** (`git checkout -b feature/YourFeature`).
+3. **Make your changes** and commit them (`git commit -m 'Add some feature'`).
+4. **Push your branch** (`git push origin feature/YourFeature`).
+5. **Open a pull request**.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Special thanks to [Scapy](https://scapy.readthedocs.io/en/latest/) for powering this tool.
+- Inspired by various network scanning tools and the open-source community.
