@@ -1,5 +1,19 @@
 # SniffEx
 
+
+```bash
+               ________      _____________________________       
+               __  ___/_________(_)__  __/__  __/__  ____/___  __
+               _____ \__  __ \_  /__  /_ __  /_ __  __/  __  |/_/
+               ____/ /_  / / /  / _  __/ _  __/ _  /___  __>  <  
+               /____/ /_/ /_//_/  /_/    /_/    /_____/  /_/|_|             
+                        ---- Stealth ARP Spoofing Tool ----
+        ===================================================================
+                       𝕍𝕖𝕣𝕤𝕚𝕠𝕟 : 1.0     𝕋𝕨𝕚𝕥𝕥𝕖𝕣 : anishalx7        
+        ===================================================================
+
+```
+
 ## Overview
 
 **SniffEx** is a powerful and easy-to-use packet sniffer designed to monitor and capture network traffic, focusing on HTTP requests and identifying potential login information. Whether you are a network security enthusiast, pentester, or developer, SniffEx provides a comprehensive solution for analyzing network traffic in real-time.
@@ -61,17 +75,21 @@ sudo python3 SniffEx.py
 ## Usage
 
 ### Running the Sniffer
+Running Sniffex is straightforward. The tool will prompt you to enter the network interface on which you want to sniff packets.
 
-To start sniffing traffic, simply specify the network interface you want to monitor:
+### Basic Command:
+```bash
+sudo python3 sniffex.py
+```
+
+### Interface Prompt:
+
+After launching the tool, you will be prompted to enter the desired network interface (e.g., eth0, wlan0):
 
 ```bash
-python3 SniffEx.py -i <interface>
+[*] Enter the interface to sniff (e.g., eth0): eth0
 ```
-For example:
 
-```bash
-python3 SniffEx.py -i eth0
-```
 ### Capturing HTTP Requests
 
 SniffEx will automatically capture HTTP requests made by devices on the network. It will display the URLs visited, along with any potential login information found within the packets.
@@ -111,7 +129,9 @@ If you encounter any issues, here are some common fixes:
      ```
      Then specify the correct interface in the command:
      ```bash
-     python3 SniffEx.py -i <interface>
+     python3 SniffEx.py
+     [*] Enter the interface to sniff (e.g., eth0): wlan0
+ 
      ```
 
 3. **Dependencies Missing**: 
