@@ -78,7 +78,7 @@ SniffEx will automatically capture HTTP requests made by devices on the network.
 
 ## Example Output
 
-
+https://www.imghost.net/ib/0joDq3msrDs3Fhh_1727588388.png
 
 ## Customization
 
