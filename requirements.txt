@@ -1,2 +1,4 @@
-scapy
-scapy-http
+# SniffEx runtime dependencies.
+# The HTTP layer is built into Scapy since 2.4.5, so the deprecated
+# 'scapy-http' package is no longer required.
+scapy>=2.5.0

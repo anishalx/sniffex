@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sniffex"
+version = "3.0.0"
+description = "Real-time HTTP packet sniffer with credential detection, built on Scapy"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Anish" }]
+keywords = ["sniffer", "scapy", "http", "network", "security", "pentest"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = ["scapy>=2.5.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+mitm = ["mitmproxy>=10.0"]  # HTTPS decryption via the embedded MITM proxy
+config = ["tomli>=2.0; python_version < '3.11'"]  # TOML config file support
+
+[project.scripts]
+sniffex = "sniffex:main"
+
+[tool.setuptools]
+py-modules = ["sniffex"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
