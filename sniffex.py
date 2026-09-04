@@ -1126,8 +1126,21 @@ class Sniffer:
         self.dns_logging = dns_logging
         self.use_regex = use_regex
         self.alert_status_codes = alert_status_codes or []
-        self.alert_patterns = alert_patterns or []
+        # Validate alert regexes up front: an invalid pattern must not raise
+        # on every request (which would silently drop request processing).
+        self.alert_patterns = []
+        for pattern in alert_patterns or []:
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                logger.warning("Ignoring invalid --alert-pattern regex %r: %s", pattern, exc)
+            else:
+                self.alert_patterns.append(pattern)
         self.stats = Stats()
+        # Serializes output-file writes and shared stat counters so that the
+        # MITM proxy thread and the capture thread (--mitm --interface) never
+        # interleave JSON/CSV rows or race on counter updates.
+        self._output_lock = threading.RLock()
         self.deadline = time.time() + timeout if timeout else None
         self._stats_thread: Optional[threading.Thread] = None
         self._stats_stop = threading.Event()
@@ -1331,29 +1344,33 @@ class Sniffer:
                                self.host_filters, self.keyword_filters, self.use_regex):
             return
 
-        self.stats.http_requests += 1
-        self.stats.hosts[info.host or "(unknown)"] += 1
-        self.stats.methods[info.method] += 1
-        if info.findings:
-            self.stats.credential_findings += len(info.findings)
+        # Shared counters and output files are touched from both the capture
+        # thread and (in --mitm --interface mode) the proxy thread, so the
+        # mutation + emit section is serialized to keep rows and stats intact.
+        with self._output_lock:
+            self.stats.http_requests += 1
+            self.stats.hosts[info.host or "(unknown)"] += 1
+            self.stats.methods[info.method] += 1
+            if info.findings:
+                self.stats.credential_findings += len(info.findings)
 
-        # Check alerts
-        self._check_alerts(info)
+            # Check alerts
+            self._check_alerts(info)
 
-        if write_synthetic:
-            self._write_synthetic_request(info)
-        self._emit_json("http_request", {
-            "method": info.method,
-            "url": info.url,
-            "host": info.host,
-            "src": info.src,
-            "dst": info.dst,
-            "headers": [{"name": n, "value": v} for n, v in info.headers],
-            "body": info.body[:8192],
-            "findings": [f.to_dict() for f in info.findings],
-        })
-        self._emit_csv(info)
-        self._print_request(info)
+            if write_synthetic:
+                self._write_synthetic_request(info)
+            self._emit_json("http_request", {
+                "method": info.method,
+                "url": info.url,
+                "host": info.host,
+                "src": info.src,
+                "dst": info.dst,
+                "headers": [{"name": n, "value": v} for n, v in info.headers],
+                "body": info.body[:8192],
+                "findings": [f.to_dict() for f in info.findings],
+            })
+            self._emit_csv(info)
+            self._print_request(info)
 
     def _check_alerts(self, info: RequestInfo) -> None:
         """Check if a request triggers any configured alerts."""
@@ -1499,8 +1516,9 @@ class Sniffer:
             return
         record = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "type": event_type, **data}
         try:
-            self._json_file.write(json.dumps(record) + "\n")
-            self._json_file.flush()
+            with self._output_lock:
+                self._json_file.write(json.dumps(record) + "\n")
+                self._json_file.flush()
         except Exception:
             pass
 
@@ -1510,19 +1528,20 @@ class Sniffer:
             return
         ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
         try:
-            for finding in info.findings:
-                self._csv_writer.writerow({
-                    "ts": ts,
-                    "method": info.method,
-                    "url": info.url,
-                    "host": info.host,
-                    "src": info.src,
-                    "dst": info.dst,
-                    "kind": finding.kind,
-                    "fields": finding.render(),
-                    "raw": finding.raw,
-                })
-            self._csv_file.flush()
+            with self._output_lock:
+                for finding in info.findings:
+                    self._csv_writer.writerow({
+                        "ts": ts,
+                        "method": info.method,
+                        "url": info.url,
+                        "host": info.host,
+                        "src": info.src,
+                        "dst": info.dst,
+                        "kind": finding.kind,
+                        "fields": finding.render(),
+                        "raw": finding.raw,
+                    })
+                self._csv_file.flush()
         except Exception:
             pass
 
