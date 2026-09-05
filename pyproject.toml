@@ -21,7 +21,12 @@ dependencies = ["scapy>=2.5.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
-mitm = ["mitmproxy>=10.0"]  # HTTPS decryption via the embedded MITM proxy
+mitm = [
+    # mitmproxy 10+ requires Python >=3.10; older Pythons get 9.x, the last
+    # series that supports them.
+    "mitmproxy>=10.0; python_version >= '3.10'",
+    "mitmproxy>=8.0; python_version < '3.10'",
+]  # HTTPS decryption via the embedded MITM proxy
 config = ["tomli>=2.0; python_version < '3.11'"]  # TOML config file support
 
 [project.scripts]
