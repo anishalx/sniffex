@@ -44,6 +44,7 @@ from sniffex import (  # noqa: E402
     extract_url,
     find_bearer_token,
     find_credentials_in_basic_auth,
+    find_credentials_in_body,
     find_credentials_in_cookies,
     find_credentials_in_form,
     find_credentials_in_headers,
@@ -210,6 +211,25 @@ def test_query_without_credentials_returns_none():
     assert find_credentials_in_query("http://x/page") is None
 
 
+def test_query_bracket_notation_credentials_found():
+    # PHP/qs-style nested params (user[password]=...) are extremely common.
+    # The final segment is what carries the secret.
+    finding = find_credentials_in_query("http://x/?user[password]=abc123")
+    assert finding is not None
+    assert finding.fields["user[password]"] == "abc123"
+
+
+def test_query_bracket_notation_non_credential_not_flagged():
+    assert find_credentials_in_query("http://x/?user[name]=bob") is None
+
+
+def test_query_password_variants_found():
+    for key in ("new_password", "old_password", "confirm_password", "id_token", "auth_token"):
+        finding = find_credentials_in_query(f"http://x/?{key}=abc123")
+        assert finding is not None, f"{key} not detected"
+        assert finding.fields[key] == "abc123"
+
+
 def test_form_credentials_found():
     finding = find_credentials_in_form("username=alice&password=wonderland&remember=1")
     assert finding is not None
@@ -219,6 +239,18 @@ def test_form_credentials_found():
 
 def test_form_without_credentials_returns_none():
     assert find_credentials_in_form("a=1&b=2") is None
+
+
+def test_form_bracket_notation_credentials_found():
+    finding = find_credentials_in_form("login%5Bpassword%5D=abc123")
+    assert finding is not None
+    assert "abc123" in finding.fields.values()
+
+
+def test_body_json_array_without_content_type_detected():
+    # A JSON array body with no Content-Type must still be parsed.
+    findings = find_credentials_in_body(None, '[{"user": {"password": "abc123"}}]')
+    assert any(f.kind == "json" for f in findings)
 
 
 def test_json_credentials_found_nested():
@@ -272,6 +304,15 @@ def test_aws_access_key_detected():
     # Build dynamically to avoid triggering secret scanners
     prefix = "AKIA"
     key = prefix + "IOSFODNN7EXAMPLE"
+    findings = find_enhanced_credentials(f"Access Key: {key}")
+    assert any(f.kind == "aws_key" and f.fields.get("access_key_id") == key
+               for f in findings)
+
+
+def test_aws_temporary_access_key_detected():
+    # STS temporary credentials use the ASIA prefix; Lambda/instance-profile
+    # creds are common in captured traffic and were previously missed.
+    key = "ASIA" + "IOSFODNN7EXAMPLE"
     findings = find_enhanced_credentials(f"Access Key: {key}")
     assert any(f.kind == "aws_key" and f.fields.get("access_key_id") == key
                for f in findings)

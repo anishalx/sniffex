@@ -316,9 +316,10 @@ def extract_url(request, packet) -> str:
 # ---------------------------------------------------------------------------
 
 SENSITIVE_KEYS = re.compile(
-    r"(?i)^(user(name|id)?|login|email|pass(word|wd|phrase)?|pwd|"
-    r"password_?hash|token|access_?token|refresh_?token|api[_-]?key|apikey|"
-    r"secret|auth|session|sessionid|session_?id|jwt|csrf|csrf_?token|pin|otp|"
+    r"(?i)^(user(name|id)?|login|email|pass(word|wd|phrase|code)?|pwd|"
+    r"password_?hash|(new|old|current|confirm)_?password|password_?confirm(ation)?|"
+    r"token|access_?token|refresh_?token|id_?token|auth_?token|api[_-]?key|apikey|"
+    r"secret|client_?secret|auth|session|sessionid|session_?id|jwt|csrf|csrf_?token|pin|otp|"
     r"twofa|2fa|cookie|accesskey|access_?secret|private_?key)$"
 )
 
@@ -331,8 +332,13 @@ BEARER_RE = re.compile(r"^Bearer\s+(\S+)$", re.IGNORECASE)
 
 # --- Enhanced credential patterns ---
 
-# AWS Access Key ID (AKIA...) and Secret Access Key
-AWS_ACCESS_KEY_RE = re.compile(r"\b(AKIA[0-9A-Z]{16})\b")
+# AWS Access Key ID and Secret Access Key.
+# AWS issues several access-key-ID prefixes: AKIA (long-term user key),
+# ASIA (STS temporary credentials -- Lambda/instance profiles), plus the
+# AIDA/AROA/AGPA/AIPA/ANPA/ANVA/ASCA/ABIA/ACCA account prefixes.
+AWS_ACCESS_KEY_RE = re.compile(
+    r"\b((?:AKIA|ASIA|AIDA|AROA|AGPA|AIPA|ANPA|ANVA|ASCA|ABIA|ACCA)[0-9A-Z]{16})\b"
+)
 AWS_SECRET_KEY_RE = re.compile(
     r"(?i)(aws[_\-]?secret[_\-]?access[_\-]?key|aws[_\-]?secret)\s*[=:]\s*['\"]?([A-Za-z0-9/+=]{40})['\"]?"
 )
@@ -393,7 +399,20 @@ class CredentialFinding:
 
 
 def _is_sensitive(key: str) -> bool:
-    return bool(SENSITIVE_KEYS.match(key.strip().lower()))
+    """Return True if a parameter name carries a secret.
+
+    Nested parameter notation is normalised so the *final* segment is what
+    gets tested: ``user[password]`` (PHP / qs style) and ``user.password``
+    both resolve to ``password``.
+    """
+    name = key.strip().lower().replace("[", ".").replace("]", "")
+    segments = [seg for seg in name.split(".") if seg]
+    # Drop trailing array indices (e.g. ``token[0]`` -> ``token``).
+    while segments and segments[-1].isdigit():
+        segments.pop()
+    if not segments:
+        return False
+    return bool(SENSITIVE_KEYS.match(segments[-1]))
 
 
 def _is_sensitive_header(name: str) -> bool:
@@ -531,7 +550,7 @@ def find_credentials_in_body(content_type: Optional[str], body: str) -> List[Cre
     ctype = (content_type or "").lower()
     findings: List[CredentialFinding] = []
     stripped = body.lstrip()
-    if "application/json" in ctype or stripped.startswith("{"):
+    if "application/json" in ctype or stripped.startswith(("{", "[")):
         finding = find_credentials_in_json(body)
         if finding:
             findings.append(finding)
